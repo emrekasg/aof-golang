@@ -1,9 +1,8 @@
 package aof
 
-// Listener going to run after aofChan receive a command
-// and before the command is written to the aof file
+// Listener  uns after aofChan receive a command
 type Listener interface {
-	Callback([]CmdLine)
+	Callback([][][]byte)
 }
 
 func (aof *AOF) AddListener(listener Listener) {

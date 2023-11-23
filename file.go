@@ -18,9 +18,7 @@ func (aof *AOF) fsync() {
 	aof.sync.Lock()
 	defer aof.sync.Unlock()
 
-	if err := aof.segment.Sync(); err != nil {
-		panic(err) // TODO: use a logger
-	}
+	aof.segment.Sync()
 }
 
 func (aof *AOF) loadFiles() error {

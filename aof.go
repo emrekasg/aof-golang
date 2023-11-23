@@ -41,11 +41,17 @@ type AOF struct {
 	aofChan   chan *AofCmd
 	Options   *AOFOptions
 	listeners map[Listener]struct{}
-	buffer    []CmdLine
+	buffer    [][][]byte
 	segment   *os.File
 	segments  []*segment
 
 	reader *Reader
+}
+
+type AofCmd struct {
+	CmdLine [][]byte
+	DbIndex int
+	Wg      *sync.WaitGroup
 }
 
 func NewAOF(aofOptions *AOFOptions) (*AOF, error) {
@@ -74,7 +80,6 @@ func NewAOF(aofOptions *AOFOptions) (*AOF, error) {
 		return nil, err
 	}
 
-	// schedule fsync every 1 second to avoid data loss
 	go func() {
 		for {
 			select {
@@ -82,7 +87,7 @@ func NewAOF(aofOptions *AOFOptions) (*AOF, error) {
 				return
 			default:
 				if FsyncEverySecond == aof.Options.Fsync {
-					aof.fsync()
+					aof.fsync() // fsync every second
 				}
 				aof.Retention()
 				time.Sleep(time.Second * 1)
@@ -95,7 +100,7 @@ func NewAOF(aofOptions *AOFOptions) (*AOF, error) {
 }
 
 // WriteAof writes a new entry to the Append-Only Log.
-func (aof *AOF) WriteAof(p *AofCmd) {
+func (aof *AOF) WriteAof(p *AofCmd) error {
 	aof.sync.Lock()
 	defer aof.sync.Unlock()
 	aof.buffer = aof.buffer[:0] // clear the buffer
@@ -107,7 +112,7 @@ func (aof *AOF) WriteAof(p *AofCmd) {
 
 	// write to aof file in byte format
 	if _, err := aof.segment.Write(bufferInBytes); err != nil {
-		panic(err) // TODO: use a logger
+		return err
 	}
 
 	if FsyncAlways == aof.Options.Fsync {
@@ -118,6 +123,8 @@ func (aof *AOF) WriteAof(p *AofCmd) {
 	for listener := range aof.listeners {
 		listener.Callback(aof.buffer)
 	}
+
+	return nil
 }
 
 // bufferToBytes converts the buffer to bytes and adds a file header.

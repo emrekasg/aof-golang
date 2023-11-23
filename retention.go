@@ -1,7 +1,7 @@
 package aof
 
-// we need retention to be able to check if size of the aof file is greater than 20MB
-// if it is, we need to create a new segment and write to it
+// Checks if the segment file is greater than the maximum size.
+// If it is, then create a new segment file and close the current one.
 func (aof *AOF) Retention() error {
 	stat, err := aof.segment.Stat()
 	if err != nil {
